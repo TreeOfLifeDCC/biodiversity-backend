@@ -14,13 +14,13 @@ origins = [
     "*"
 ]
 
-# ES_HOST = 'https://prj-ext-prod-planet-bio-dr.es.europe-west2.gcp.elastic-cloud.com'
+ES_HOST = 'https://prj-ext-prod-planet-bio-dr.es.europe-west2.gcp.elastic-cloud.com'
 
-ES_HOST = os.getenv('ES_HOST')
-# ES_USERNAME = 'elastic'
-ES_USERNAME = os.getenv('ES_USERNAME')
-# ES_PASSWORD = 'LYbx3h2EIz8COQIHEZ3oQxHo'
-ES_PASSWORD = os.getenv('ES_PASSWORD')
+# ES_HOST = os.getenv('ES_HOST')
+ES_USERNAME = 'elastic'
+# ES_USERNAME = os.getenv('ES_USERNAME')
+ES_PASSWORD = 'LYbx3h2EIz8COQIHEZ3oQxHo'
+# ES_PASSWORD = os.getenv('ES_PASSWORD')
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,7 +56,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
     body["aggs"] = dict()
     for aggregation_field in DATA_PORTAL_AGGREGATIONS:
         body["aggs"][aggregation_field] = {
-            "terms": {"field": aggregation_field}
+            "terms": {"field": aggregation_field, "size": 20}
         }
     body["aggs"]["taxonomies"] = {
         "nested": {"path": f"taxonomies.{current_class}"},
@@ -164,7 +164,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
 @app.get("/{index}/{record_id}")
 async def details(index: str, record_id: str):
     body = dict()
-    if index == 'data_portal':
+    if index == 'data_portal_index':
         body["query"] = {
             "bool": {"filter": [{'term': {'organism': record_id}}]}}
         response = await es.search(index=index, body=body)
