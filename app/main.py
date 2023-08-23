@@ -3,7 +3,7 @@ import os
 from elasticsearch import AsyncElasticsearch, AIOHttpConnection
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+import os
 import json
 
 from .constants import DATA_PORTAL_AGGREGATIONS
@@ -14,13 +14,12 @@ origins = [
     "*"
 ]
 
-ES_HOST = 'https://prj-ext-prod-planet-bio-dr.es.europe-west2.gcp.elastic-cloud.com'
 
-# ES_HOST = os.getenv('ES_HOST')
-ES_USERNAME = 'elastic'
-# ES_USERNAME = os.getenv('ES_USERNAME')
-ES_PASSWORD = 'LYbx3h2EIz8COQIHEZ3oQxHo'
-# ES_PASSWORD = os.getenv('ES_PASSWORD')
+ES_HOST = os.getenv('ES_CONNECTION_URL')
+
+ES_USERNAME = os.getenv('ES_USERNAME')
+
+ES_PASSWORD = os.getenv('ES_PASSWORD')
 
 app.add_middleware(
     CORSMiddleware,
