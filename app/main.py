@@ -46,7 +46,7 @@ async def get_gis_data(filter: str = None,
     body["aggs"] = dict()
     for aggregation_field in DATA_PORTAL_AGGREGATIONS:
         body["aggs"][aggregation_field] = {
-            "terms": {"field": aggregation_field + ".keyword", "size": 30}
+            "terms": {"field": aggregation_field + ".keyword", "size": 50}
         }
     body["aggs"]["taxonomies"] = {
         "nested": {"path": f"taxonomies.{current_class}"},
