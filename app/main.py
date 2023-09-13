@@ -171,7 +171,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
     body["aggs"] = dict()
     for aggregation_field in DATA_PORTAL_AGGREGATIONS:
         body["aggs"][aggregation_field] = {
-            "terms": {"field": aggregation_field, "size": 20}
+            "terms": {"field": aggregation_field, "size": 50}
         }
     body["aggs"]["taxonomies"] = {
         "nested": {"path": f"taxonomies.{current_class}"},
