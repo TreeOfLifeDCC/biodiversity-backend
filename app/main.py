@@ -163,7 +163,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
 @app.get("/{index}/{record_id}")
 async def details(index: str, record_id: str):
     body = dict()
-    if index == 'data_portal_index':
+    if index == 'data_portal':
         body["query"] = {
             "bool": {"filter": [{'term': {'organism': record_id}}]}}
         response = await es.search(index=index, body=body)
