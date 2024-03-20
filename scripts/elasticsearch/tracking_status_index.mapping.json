@@ -1,0 +1,1006 @@
+{
+  "properties": {
+    "symbionts_records": {
+      "properties": {
+        "accession": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "organism": {
+          "properties": {
+            "ontologyTerm": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "text": {
+              "type": "keyword",
+              "fields": {
+                "keyword": {
+                  "type": "keyword"
+                },
+                "normalize": {
+                  "type": "keyword",
+                  "normalizer": "lower_case_normalizer"
+                }
+              }
+            }
+          }
+        },
+        "organismPart": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sex": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "trackingSystem": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      }
+    },
+    "symbionts_assemblies_status": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "symbionts_biosamples_status": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "symbionts_raw_data_status": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "metagenomes_records": {
+      "properties": {
+        "accession": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "organism": {
+          "properties": {
+            "ontologyTerm": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "text": {
+              "type": "keyword",
+              "fields": {
+                "keyword": {
+                  "type": "keyword"
+                },
+                "normalize": {
+                  "type": "keyword",
+                  "normalizer": "lower_case_normalizer"
+                }
+              }
+            }
+          }
+        },
+        "organismPart": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "trackingSystem": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      }
+    },
+    "metagenomes_assemblies_status": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "metagenomes_biosamples_status": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "metagenomes_raw_data_status": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+
+    "annotation": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "annotation_complete": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "annotation_complete ": {
+      "type": "text",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "annotation_date": {
+      "type": "date"
+    },
+    "annotation_status": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "assemblies": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "assemblies_status": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "biosamples": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "biosamples_date": {
+      "type": "date"
+    },
+    "commonName": {
+      "type": "keyword",
+      "normalizer": "lower_case_normalizer"
+    },
+    "ena_date": {
+      "type": "date"
+    },
+    "mapped_reads": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "organism": {
+      "type": "keyword",
+      "normalizer": "lower_case_normalizer"
+    },
+    "project_name": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "rank": {
+      "type": "long"
+    },
+    "raw_data": {
+      "type": "keyword",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "tax_id": {
+      "type": "text",
+      "fields": {
+        "keyword": {
+          "type": "keyword",
+          "ignore_above": 256
+        }
+      }
+    },
+    "taxonomies": {
+      "type": "nested",
+      "properties": {
+        "class": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "cohort": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "commonName": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            }
+          }
+        },
+        "family": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "forma": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            }
+          }
+        },
+        "genus": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "infraclass": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "infraorder": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "kingdom": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "order": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "parvorder": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "phylum": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "section": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            }
+          }
+        },
+        "series": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            }
+          }
+        },
+        "species": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "species group": {
+          "properties": {
+            "commonName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "scientificName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "species subgroup": {
+          "properties": {
+            "commonName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "scientificName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "species_group": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "species_subgroup": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "subclass": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "subcohort": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "subfamily": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "subgenus": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "subkingdom": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "suborder": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "subphylum": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "subsection": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            }
+          }
+        },
+        "subspecies": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "subtribe": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "superclass": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "superfamily": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "superkingdom": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "superorder": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "superphylum": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "tribe": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            },
+            "tax_id": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "varietas": {
+          "type": "nested",
+          "properties": {
+            "commonName": {
+              "type": "keyword"
+            },
+            "scientificName": {
+              "type": "keyword"
+            }
+          }
+        }
+      }
+    },
+    "trackingSystem": {
+      "type": "nested",
+      "properties": {
+        "name": {
+          "type": "keyword",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "normalize": {
+              "type": "keyword",
+              "normalizer": "lower_case_normalizer"
+            }
+          }
+        },
+        "rank": {
+          "type": "keyword"
+        },
+        "status": {
+          "type": "keyword",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "normalize": {
+              "type": "keyword",
+              "normalizer": "lower_case_normalizer"
+            }
+          }
+        }
+      }
+    }
+  }
+}
