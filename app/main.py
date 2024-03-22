@@ -1,10 +1,10 @@
+import os
+
 from elasticsearch import AsyncElasticsearch, AIOHttpConnection
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
-from dotenv import load_dotenv
-from google.cloud import secretmanager
 
 from .constants import DATA_PORTAL_AGGREGATIONS
 
@@ -14,24 +14,12 @@ origins = [
     "*"
 ]
 
-# get env variables
-load_dotenv()
-PROJECT = os.getenv("PROJECT")
-ES_HOST = os.getenv('ES_HOST')
 
+ES_HOST = os.getenv('ES_CONNECTION_URL')
 
-def get_secret_data(project_id, secret_id, version_id):
-    client = secretmanager.SecretManagerServiceClient()
-    secret_detail = f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
-    response = client.access_secret_version(request={"name": secret_detail})
-    data = response.payload.data.decode("UTF-8")
-    print("get_secret_data: ", data)
-    return data
+ES_USERNAME = os.getenv('ES_USERNAME')
 
-
-# get ES credentials
-ES_USERNAME = get_secret_data(PROJECT, 'ES_USERNAME', 1)
-ES_PASSWORD = get_secret_data(PROJECT, 'ES_PASSWORD', 1)
+ES_PASSWORD = os.getenv('ES_PASSWORD')
 
 app.add_middleware(
     CORSMiddleware,
@@ -279,11 +267,11 @@ async def root(index: str, offset: int = 0, limit: int = 15,
         )
         body["query"]["bool"]["must"]["bool"]["should"].append(
             {"wildcard": {"symbionts_records.organism.text": {"value": f"*{search}*",
-                                                              "case_insensitive": True}}}
+                                         "case_insensitive": True}}}
         )
         body["query"]["bool"]["must"]["bool"]["should"].append(
             {"wildcard": {"metagenomes_records.organism.text": {"value": f"*{search}*",
-                                                                "case_insensitive": True}}}
+                                         "case_insensitive": True}}}
         )
     print(json.dumps(body))
     response = await es.search(
