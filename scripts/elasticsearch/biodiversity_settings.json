@@ -1,0 +1,18 @@
+{
+  "settings": {
+    "max_result_window": 1000000,
+    "analysis": {
+      "normalizer": {
+        "lower_case_normalizer": {
+          "type": "custom",
+          "filter": [
+            "lowercase"
+          ]
+        }
+      }
+    }
+  }
+}
+
+
+
