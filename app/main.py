@@ -285,7 +285,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
     print(json.dumps(body))
 
     if action == 'download':
-        response = await es.search(index=index, sort=sort, from_=offset, body=body, size=15)
+        response = await es.search(index=index, sort=sort, from_=offset, body=body, size=50000)
     else:
         response = await es.search(index=index, sort=sort, from_=offset, size=limit, body=body)
     data = dict()
