@@ -1,9 +1,11 @@
 import os
-
 from elasticsearch import AsyncElasticsearch, AIOHttpConnection
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-import os
+from pydantic import BaseModel
+import csv
+import io
 import json
 
 from .constants import DATA_PORTAL_AGGREGATIONS
@@ -13,7 +15,6 @@ app = FastAPI()
 origins = [
     "*"
 ]
-
 
 ES_HOST = os.getenv('ES_CONNECTION_URL')
 
@@ -168,8 +169,11 @@ async def summary():
 async def root(index: str, offset: int = 0, limit: int = 15,
                sort: str = "rank:desc", filter: str = None,
                search: str = None, current_class: str = 'kingdom',
-               phylogeny_filters: str = None):
-    print(phylogeny_filters)
+               phylogeny_filters: str = None, action: str = None):
+    print("Koosum phylogeny", phylogeny_filters)
+
+    print("Koosum filter", filter)
+
     # data structure for ES query
     body = dict()
     # building aggregations for every request
@@ -279,9 +283,11 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                                                                 "case_insensitive": True}}}
         )
     print(json.dumps(body))
-    response = await es.search(
-        index=index, sort=sort, from_=offset, size=limit, body=body
-    )
+
+    if action == 'download':
+        response = await es.search(index=index, sort=sort, from_=offset, body=body, size=15)
+    else:
+        response = await es.search(index=index, sort=sort, from_=offset, size=limit, body=body)
     data = dict()
     data['count'] = response['hits']['total']['value']
     data['results'] = response['hits']['hits']
@@ -304,173 +310,104 @@ async def details(index: str, record_id: str):
     return data
 
 
-from pydantic import BaseModel
-
-class Item(BaseModel):
-    taxonomyFilter: list
-    filter: str
-    downloadOption: str
-    taxonId: str
-
+class QueryParam(BaseModel):
+    pageIndex: int
+    pageSize: int
+    searchValue: str = ''
+    sortValue: str
+    filterValue: str
+    currentClass: str
+    phylogeny_filters: str
+    index_name: str
 
 
 @app.post("/data-download")
-async def get_data_files(item: Item):
-    data = item
+async def get_data_files(item: QueryParam):
+    print(item)
+    data = await root(item.index_name, 0, item.pageSize,
+                      item.sortValue, item.filterValue,
+                      item.searchValue, item.currentClass,
+                      item.phylogeny_filters, 'download')
+    # Now do something magical with the data
     print(data)
-    # test = getDataFiles(search, filter, from_param, size, sort_column, sort_order, taxonomy_filter,download_option)
-    # print(test)
+    # return f"Data processed: {data}"
+
+    download_option = "annotation"
+    csv_data = create_data_files_csv(data['results'], download_option)
+
+    # Return the byte stream as a downloadable CSV file
+    return StreamingResponse(
+        csv_data,
+        media_type='text/csv',
+        headers={"Content-Disposition": "attachment; filename=download.csv"}
+    )
 
 
-import json
-from typing import Optional
+def create_data_files_csv(results, download_option):
+    header = []
+    if download_option.lower() == "assemblies":
+        header = ["Scientific Name", "Accession", "Version", "Assembly Name", "Assembly Description",
+                  "Link to chromosomes, contigs and scaffolds all in one"]
+    elif download_option.lower() == "annotation":
+        header = ["Annotation GTF", "Annotation GFF3", "Proteins Fasta", "Transcripts Fasta",
+                  "Softmasked genomes Fasta"]
+    elif download_option.lower() == "raw_files":
+        header = ["Study Accession", "Sample Accession", "Experiment Accession", "Run Accession", "Tax Id",
+                  "Scientific Name", "FASTQ FTP", "Submitted FTP", "SRA FTP", "Library Construction Protocol"]
 
+    output = io.StringIO()
+    csv_writer = csv.writer(output)
+    csv_writer.writerow(header)
 
-def getDataFiles(search: str, filter: str, from_param: str, size: str, sortColumn: str, sortOrder: str, taxonomyFilter: str,downloadOption: str):
-    return get_organism_filter_query(search, filter, from_param, size, sortColumn, sortOrder, taxonomyFilter)
+    for entry in results:
+        record = entry["_source"]
+        if download_option.lower() == "assemblies":
+            assemblies = record.get("assemblies", [])
+            scientific_name = record.get("organism", "")
+            for assembly in assemblies:
+                accession = assembly.get("accession", "-")
+                version = assembly.get("version", "-")
+                assembly_name = assembly.get("assembly_name", "")
+                assembly_description = assembly.get("description", "")
+                link = f"https://www.ebi.ac.uk/ena/browser/api/fasta/{accession}?download=true&gzip=true" if accession else ""
+                entry = [scientific_name, accession, version, assembly_name, assembly_description, link]
+                csv_writer.writerow(entry)
 
+        elif download_option.lower() == "annotation":
+            annotations = record.get("annotation", [])
+            for annotation in annotations:
+                gtf = annotation.get("annotation", {}).get("GTF", "-")
+                gff3 = annotation.get("annotation", {}).get("GFF3", "-")
+                proteins_fasta = annotation.get("proteins", {}).get("FASTA", "")
+                transcripts_fasta = annotation.get("transcripts", {}).get("FASTA", "")
+                softmasked_genomes_fasta = annotation.get("softmasked_genome", {}).get("FASTA", "")
+                entry = [gtf, gff3, proteins_fasta, transcripts_fasta, softmasked_genomes_fasta]
+                csv_writer.writerow(entry)
 
-def get_organism_filter_query(search: Optional[str], filter: Optional[str], from_param: str, size: str,
-                              sort_column: Optional[str], sort_order: Optional[str],
-                              taxonomy_filter: Optional[str]) -> str:
-    taxa_rank_array = [
-        "superkingdom", "kingdom", "subkingdom", "superphylum", "phylum", "subphylum", "superclass", "class",
-        "subclass",  "infraclass", "cohort", "subcohort", "superorder", "order", "suborder", "infraorder", "parvorder",
-        "section", "subsection", "superfamily", "family", "subfamily", "tribe", "subtribe", "genus", "series",
-        "subgenus", "species_group", "species_subgroup", "species", "subspecies", "varietas", "forma"]
-    sb = []
-    sbt = []
-    sort = get_sort_query(sort_column, sort_order)
-    is_phylogeny_filter = False
-    phylogeny_rank = ""
-    phylogeny_tax_id = ""
-    search_query = []
+        elif download_option.lower() == "raw_files":
+            experiments = record.get("experiment", [])
+            for experiment in experiments:
+                study_accession = experiment.get("study_accession", "")
+                sample_accession = experiment.get("sample_accession", "")
+                experiment_accession = experiment.get("experiment_accession", "")
+                run_accession = experiment.get("run_accession", "")
+                tax_id = experiment.get("tax_id", "")
+                scientific_name = experiment.get("scientific_name", "")
+                submitted_ftp = experiment.get("submitted_ftp", "")
+                sra_ftp = experiment.get("sra-ftp", "")
+                library_construction_protocol = experiment.get("library_construction_protocol", "")
+                fastq_ftp = experiment.get("fastq_ftp", "")
 
-    if search:
-        search_array = search.split(" ")
-        search_query = ["*" + temp + "*" for temp in search_array]
+                if fastq_ftp:
+                    fastq_list = fastq_ftp.split(";")
+                    for fastq in fastq_list:
+                        entry = [study_accession, sample_accession, experiment_accession, run_accession, tax_id,
+                                  scientific_name, fastq, submitted_ftp, sra_ftp, library_construction_protocol]
+                        csv_writer.writerow(entry)
+                else:
+                    entry = [study_accession, sample_accession, experiment_accession, run_accession, tax_id,
+                              scientific_name, fastq_ftp, submitted_ftp, sra_ftp, library_construction_protocol]
+                    csv_writer.writerow(entry)
 
-    sb.append("{")
-    if from_param != "undefined" and size != "undefined":
-        sb.append(f"'from': {from_param}, 'size': {size},")
-
-    if sort:
-        sb.append(sort)
-
-    sb.append("'query': { 'bool': { 'must': [")
-
-    if search_query:
-        sb.append("{'multi_match': {")
-        sb.append("'operator': 'AND',")
-        sb.append(f"'query': '{' '.join(search_query)}',")
-        sb.append("'fields': ['organism.autocomp', 'commonName.autocomp', 'biosamples.autocomp', 'raw_data.autocomp',"
-                  "'mapped_reads.autocomp', 'assemblies_status.autocomp', 'annotation_complete.autocomp', "
-                  "'annotation_status.autocomp', 'symbionts_records.organism.text.autocomp']")
-        sb.append("}},")
-
-    if taxonomy_filter and taxonomy_filter != "undefined":
-        taxa_tree = json.loads(taxonomy_filter)
-        if taxa_tree:
-            for i, taxa in enumerate(taxa_tree):
-                rank = taxa.get("rank")
-                taxonomy = taxa.get("taxonomy")
-                nested_query = (f"{{ 'nested': {{ 'path': 'taxonomies', 'query': {{"
-                                f"'nested': {{ 'path': 'taxonomies.{rank}', 'query': {{"
-                                f"'bool': {{ 'must': [{{ 'term': {{ 'taxonomies.{rank}.scientificName': '{taxonomy}' }} }} ]"
-                                f"}} }} }} }} }} }}")
-                sbt.append(nested_query)
-                if i < len(taxa_tree) - 1:
-                    sbt.append(",")
-
-    if filter and filter != "undefined":
-        filter_array = filter.split(",")
-        if taxonomy_filter and taxonomy_filter != "undefined" and sbt:
-            sb.append("".join(sbt) + ",")
-
-        for filt in filter_array:
-            split_array = filt.split("-")
-            filter_type = split_array[0].strip()
-            filter_value = split_array[1].strip()
-
-            if filter_type == "Biosamples":
-                sb.append(f"{{'terms': {{'biosamples': ['{filter_value}']}}}},")
-            elif filter_type == "Raw data":
-                sb.append(f"{{'terms': {{'raw_data': ['{filter_value}']}}}},")
-            elif filter_type == "Mapped reads":
-                sb.append(f"{{'terms': {{'mapped_reads': ['{filter_value}']}}}},")
-            elif filter_type == "Assemblies":
-                sb.append(f"{{'terms': {{'assemblies_status': ['{filter_value}']}}}},")
-            elif filter_type == "Annotation complete":
-                sb.append(f"{{'terms': {{'annotation_complete': ['{filter_value}']}}}},")
-            elif filter_type == "Annotation":
-                sb.append(f"{{'terms': {{'annotation_status': ['{filter_value}']}}}},")
-            elif filter_type == "Genome Notes":
-                sb.append(
-                    "{{ 'nested': {{ 'path': 'genome_notes', 'query': {{ 'bool': {{ 'must': [{{'exists': {{ 'field': 'genome_notes.url'}}}} ] }} }} }} }},")
-            elif filter_type in taxa_rank_array:  # Assuming taxa_rank_array is predefined
-                is_phylogeny_filter = True
-                phylogeny_rank = filter_type
-                phylogeny_tax_id = filter_value
-                sb.append(f"{{ 'nested': {{ 'path': 'taxonomies', 'query': {{ "
-                          f"'nested': {{ 'path': 'taxonomies.{phylogeny_rank}', 'query': {{ 'bool': {{ 'must': ["
-                          f"{{ 'term': {{ 'taxonomies.{phylogeny_rank}.tax_id': '{phylogeny_tax_id}' }} }} ] }} }} }} }} }} }},")
-
-    sb.append("]}},")
-
-    # Adding aggregations (assumed structure remains the same)
-    sb.append("'aggregations': {")
-    sb.append("'kingdomRank': { 'nested': { 'path':'taxonomies.kingdom'},")
-    sb.append("'aggs':{'scientificName':{'terms':{'field':'taxonomies.kingdom.scientificName', 'size': 20000},")
-    sb.append("'aggs':{'commonName':{'terms':{'field':'taxonomies.kingdom.commonName', 'size': 20000}},")
-    sb.append("'taxId':{'terms':{'field':'taxonomies.kingdom.tax_id.keyword', 'size': 20000}}}}}},")
-
-    if taxonomy_filter and taxonomy_filter != "undefined" and not is_phylogeny_filter:
-        taxa_tree = json.loads(taxonomy_filter)
-        if taxa_tree:
-            last_taxa = taxa_tree[-1]
-            child_rank = last_taxa.get("childRank")
-            sb.append(f"'childRank': {{ 'nested': {{ 'path':'taxonomies.{child_rank}' }},")
-            sb.append(
-                f"'aggs':{{'scientificName':{{'terms':{{'field':'taxonomies.{child_rank}.scientificName', 'size': 20000}}}},")
-            sb.append(
-                f"'aggs':{{'commonName':{{'terms':{{'field':'taxonomies.{child_rank}.commonName', 'size': 20000}}}},")
-            sb.append(f"'taxId':{{'terms':{{'field':'taxonomies.{child_rank}.tax_id.keyword', 'size': 20000}}}}}}}},")
-    elif is_phylogeny_filter:
-        sb.append(f"'childRank': {{ 'nested': {{ 'path':'taxonomies.{phylogeny_rank}' }},")
-        sb.append(
-            f"'aggs':{{'scientificName':{{'terms':{{'field':'taxonomies.{phylogeny_rank}.scientificName', 'size': 20000}}}},")
-        sb.append(
-            f"'aggs':{{'commonName':{{'terms':{{'field':'taxonomies.{phylogeny_rank}.commonName', 'size': 20000}}}},")
-        sb.append(f"'taxId':{{'terms':{{'field':'taxonomies.{phylogeny_rank}.tax_id.keyword', 'size': 20000}}}}}}}},")
-
-    # Additional aggregations
-    sb.append("'symbionts_biosamples_status': {'terms': {'field': 'symbionts_biosamples_status'}},")
-    sb.append("'symbionts_raw_data_status': {'terms': {'field': 'symbionts_raw_data_status'}},")
-    sb.append("'symbionts_assemblies_status': {'terms': {'field': 'symbionts_assemblies_status'}},")
-    sb.append("'biosamples': {'terms': {'field': 'biosamples'}},")
-    sb.append("'raw_data': {'terms': {'field': 'raw_data'}},")
-    sb.append("'mapped_reads': {'terms': {'field': 'mapped_reads'}},")
-    sb.append("'assemblies': {'terms': {'field': 'assemblies_status'}},")
-    sb.append("'annotation_complete': {'terms': {'field': 'annotation_complete'}},")
-    sb.append("'annotation': {'terms': {'field': 'annotation_status'}},")
-    sb.append("'experiment': { 'nested': { 'path':'experiment'},")
-    sb.append("'aggs':{")
-    sb.append("'library_construction_protocol':{'terms':{'field':'experiment.library_construction_protocol.keyword'},")
-    sb.append("'aggs' : { 'organism_count' : { 'reverse_nested' : {}}")
-    sb.append("}}}},")
-    sb.append("'genome': { 'nested': { 'path':'genome_notes'},")
-    sb.append("'aggs':{")
-    sb.append("'genome_count':{'cardinality':{'field':'genome_notes.id'}}")
-    sb.append("}}}}")
-
-    sb.append("}}")
-
-    query = "".join(sb).replace("'", '"').replace(",]", "]")
-    return query
-
-
-def get_sort_query(sort_column: Optional[str], sort_order: Optional[str]) -> str:
-    # Placeholder function for sort query generation
-    if sort_column and sort_order:
-        return f"'sort': [{{'{sort_column}': '{sort_order}'}}],"
-    return ""
+    output.seek(0)
+    return io.BytesIO(output.getvalue().encode('utf-8'))
