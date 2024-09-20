@@ -30,15 +30,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# es = AsyncElasticsearch(
-#     [ES_HOST], connection_class=AIOHttpConnection,
-#     http_auth=(ES_USERNAME, ES_PASSWORD),
-#     use_ssl=True, verify_certs=False)
-
 es = AsyncElasticsearch(
-    ['https://prj-ext-prod-planet-bio-dr.es.europe-west2.gcp.elastic-cloud.com/'], connection_class=AIOHttpConnection,
-    http_auth=('elastic', 'GD5tjaI3bTBG3qpmlavpv3Ls'),
+    [ES_HOST], connection_class=AIOHttpConnection,
+    http_auth=(ES_USERNAME, ES_PASSWORD),
     use_ssl=True, verify_certs=False)
+
 
 
 @app.get("/gis_filter")
@@ -319,6 +315,7 @@ class QueryParam(BaseModel):
     currentClass: str
     phylogeny_filters: str
     index_name: str
+    downloadOption: str
 
 
 @app.post("/data-download")
@@ -328,9 +325,6 @@ async def get_data_files(item: QueryParam):
                       item.sortValue, item.filterValue,
                       item.searchValue, item.currentClass,
                       item.phylogeny_filters, 'download')
-    # Now do something magical with the data
-    print(data)
-    # return f"Data processed: {data}"
 
     download_option = "annotation"
     csv_data = create_data_files_csv(data['results'], download_option)
