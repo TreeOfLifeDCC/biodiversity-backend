@@ -166,9 +166,6 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                sort: str = "rank:desc", filter: str = None,
                search: str = None, current_class: str = 'kingdom',
                phylogeny_filters: str = None, action: str = None):
-    print("Koosum phylogeny", phylogeny_filters)
-
-    print("Koosum filter", filter)
 
     # data structure for ES query
     body = dict()
