@@ -7,6 +7,7 @@ from pydantic import BaseModel
 import csv
 import io
 import json
+import re
 
 from .constants import DATA_PORTAL_AGGREGATIONS
 
@@ -166,7 +167,6 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                sort: str = "rank:desc", filter: str = None,
                search: str = None, current_class: str = 'kingdom',
                phylogeny_filters: str = None, action: str = None):
-
     # data structure for ES query
     body = dict()
     # building aggregations for every request
@@ -317,14 +317,12 @@ class QueryParam(BaseModel):
 
 @app.post("/data-download")
 async def get_data_files(item: QueryParam):
-    print(item)
     data = await root(item.index_name, 0, item.pageSize,
                       item.sortValue, item.filterValue,
                       item.searchValue, item.currentClass,
                       item.phylogeny_filters, 'download')
 
-    download_option = "annotation"
-    csv_data = create_data_files_csv(data['results'], download_option)
+    csv_data = create_data_files_csv(data['results'], item.downloadOption)
 
     # Return the byte stream as a downloadable CSV file
     return StreamingResponse(
@@ -345,6 +343,8 @@ def create_data_files_csv(results, download_option):
     elif download_option.lower() == "raw_files":
         header = ["Study Accession", "Sample Accession", "Experiment Accession", "Run Accession", "Tax Id",
                   "Scientific Name", "FASTQ FTP", "Submitted FTP", "SRA FTP", "Library Construction Protocol"]
+    elif download_option.lower() == "metadata":
+        header = ['Organism', 'Common Name', 'Common Name Source', 'Current Status']
 
     output = io.StringIO()
     csv_writer = csv.writer(output)
@@ -393,12 +393,21 @@ def create_data_files_csv(results, download_option):
                     fastq_list = fastq_ftp.split(";")
                     for fastq in fastq_list:
                         entry = [study_accession, sample_accession, experiment_accession, run_accession, tax_id,
-                                  scientific_name, fastq, submitted_ftp, sra_ftp, library_construction_protocol]
+                                 scientific_name, fastq, submitted_ftp, sra_ftp, library_construction_protocol]
                         csv_writer.writerow(entry)
                 else:
                     entry = [study_accession, sample_accession, experiment_accession, run_accession, tax_id,
-                              scientific_name, fastq_ftp, submitted_ftp, sra_ftp, library_construction_protocol]
+                             scientific_name, fastq_ftp, submitted_ftp, sra_ftp, library_construction_protocol]
                     csv_writer.writerow(entry)
+
+        elif download_option.lower() == "metadata":
+            organism = record.get('organism', '')
+            common_name = record.get('commonName', '')
+            common_name_source = record.get('commonNameSource', '')
+            current_status = record.get('currentStatus', '')
+            entry = [organism, common_name, common_name_source, current_status]
+            csv_writer.writerow(entry)
 
     output.seek(0)
     return io.BytesIO(output.getvalue().encode('utf-8'))
+
