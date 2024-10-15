@@ -32,7 +32,7 @@ app.add_middleware(
 es = AsyncElasticsearch(
     [ES_HOST], connection_class=AIOHttpConnection,
     http_auth=(ES_USERNAME, ES_PASSWORD),
-    use_ssl=True, verify_certs=False)
+    use_ssl=True, verify_certs=False, timeout=60)
 
 
 @app.get("/gis_filter")
