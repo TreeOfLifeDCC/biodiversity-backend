@@ -418,10 +418,8 @@ def create_data_files_csv(results, download_option, index_name):
             common_name = record.get('commonName', '')
             metadata_biosamples = record.get('biosamples', '')
             raw_data_ena = record.get('raw_data', '')
-
             mapped_reads_ena = record.get('mapped_reads', '')
             assemblies_ena = record.get('assemblies_status', '')
-
             annotation_complete = record.get('annotation_complete', '')
             annotation_submitted_ena = record.get('annotation_status', '')
             entry = [organism, common_name, metadata_biosamples, raw_data_ena, mapped_reads_ena, assemblies_ena,
