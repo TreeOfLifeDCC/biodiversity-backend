@@ -182,7 +182,19 @@ async def root(index: str, offset: int = 0, limit: int = 15,
         }
         }
     }
-
+    body["aggs"]["experiment"] = {
+        "nested": {"path": "experiment"},
+        "aggs": {"library_construction_protocol": {"terms": {
+            "field": "experiment.library_construction_protocol.keyword"}
+        }
+        }
+    }
+    body["aggs"]["genome"] = {
+        "nested": {"path": "genome_notes"},
+        "aggs": {"genome_count": {"cardinality": {"field": "genome_notes.id"}
+                                  }
+                 }
+    }
     if phylogeny_filters:
         body["query"] = {
             "bool": {
@@ -241,11 +253,39 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                     }
                 )
                 body["query"]["bool"]["filter"].append(nested_dict)
+
             else:
                 filter_name, filter_value = filter_item.split(":")
-                body["query"]["bool"]["filter"].append(
-                    {"term": {filter_name: filter_value}}
-                )
+                if filter_name == 'experimentType':
+                    nested_dict = {
+                    "nested": {
+                        "path": "experiment",
+                        "query": {
+                            "bool": {
+                                "filter": {
+                                    "term": {
+                                        "experiment"
+                                        ".library_construction_protocol"
+                                        ".keyword": filter_value
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    }
+                    body["query"]["bool"]["filter"].append(nested_dict)
+                elif filter_name == 'genome_notes':
+                    nested_dict = {
+                        'nested': {'path': 'genome_notes', 'query': {
+                            'bool': {
+                                'must': [
+                                    {'exists': {
+                                        'field': 'genome_notes.url'}}]}}}}
+                    body["query"]["bool"]["filter"].append(nested_dict)
+                else:
+                    print(filter_name)
+                    body["query"]["bool"]["filter"].append(
+                        {"term": {filter_name: filter_value}})
 
     # adding search string
     if search:
