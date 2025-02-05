@@ -14,7 +14,6 @@ origins = [
     "*"
 ]
 
-
 ES_HOST = os.getenv('ES_CONNECTION_URL')
 
 ES_USERNAME = os.getenv('ES_USERNAME')
@@ -151,6 +150,49 @@ async def get_gis_data(filter: str = None,
     return data
 
 
+@app.get("/articles")
+async def articles(offset: int = 0, limit: int = 15,
+                   articleType: str = None,
+                   journalTitle: str = None, pubYear: str = None):
+    body = dict()
+    data_index = 'articles'
+    # Aggregations
+    body["aggs"] = dict()
+    body["aggs"]['journalTitle'] = {
+        "terms": {"field": "journalTitle"}
+    }
+    body["aggs"]['pubYear'] = {
+        "terms": {"field": "pubYear"}
+    }
+    body["aggs"]["articleType"] = {
+        "terms": {"field": "articleType"}
+    }
+
+    # Filters
+    if articleType or journalTitle or pubYear:
+        body["query"] = {
+            "bool": {
+                "filter": list()
+            }
+        }
+    if articleType:
+        body["query"]["bool"]["filter"].append(
+            {"term": {'articleType': articleType}})
+    if journalTitle:
+        body["query"]["bool"]["filter"].append(
+            {"term": {'journalTitle': journalTitle}})
+    if pubYear:
+        body["query"]["bool"]["filter"].append({"term": {'pubYear': pubYear}})
+    print(body)
+    response = await es.search(index=data_index, from_=offset, size=limit,
+                               body=body)
+    data = dict()
+    data['count'] = response['hits']['total']['value']
+    data['results'] = response['hits']['hits']
+    data['aggregations'] = response['aggregations']
+    return data
+
+
 @app.get("/summary")
 async def summary():
     response = await es.search(index="summary")
@@ -258,20 +300,20 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                 filter_name, filter_value = filter_item.split(":")
                 if filter_name == 'experimentType':
                     nested_dict = {
-                    "nested": {
-                        "path": "experiment",
-                        "query": {
-                            "bool": {
-                                "filter": {
-                                    "term": {
-                                        "experiment"
-                                        ".library_construction_protocol"
-                                        ".keyword": filter_value
+                        "nested": {
+                            "path": "experiment",
+                            "query": {
+                                "bool": {
+                                    "filter": {
+                                        "term": {
+                                            "experiment"
+                                            ".library_construction_protocol"
+                                            ".keyword": filter_value
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
                     }
                     body["query"]["bool"]["filter"].append(nested_dict)
                 elif filter_name == 'genome_notes':
@@ -306,12 +348,14 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                                          "case_insensitive": True}}}
         )
         body["query"]["bool"]["must"]["bool"]["should"].append(
-            {"wildcard": {"symbionts_records.organism.text": {"value": f"*{search}*",
-                                         "case_insensitive": True}}}
+            {"wildcard": {
+                "symbionts_records.organism.text": {"value": f"*{search}*",
+                                                    "case_insensitive": True}}}
         )
         body["query"]["bool"]["must"]["bool"]["should"].append(
-            {"wildcard": {"metagenomes_records.organism.text": {"value": f"*{search}*",
-                                         "case_insensitive": True}}}
+            {"wildcard": {
+                "metagenomes_records.organism.text": {"value": f"*{search}*",
+                                                      "case_insensitive": True}}}
         )
     print(json.dumps(body))
     response = await es.search(
