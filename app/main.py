@@ -375,7 +375,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
 @app.get("/{index}/{record_id}")
 async def details(index: str, record_id: str):
     body = dict()
-    if index == 'data_portal':
+    if 'data_portal' in index:
         body["query"] = {
             "bool": {"filter": [{'term': {'organism': record_id}}]}}
         response = await es.search(index=index, body=body)
@@ -427,9 +427,9 @@ def create_data_files_csv(results, download_option, index_name):
     elif download_option.lower() == "raw_files":
         header = ["Study Accession", "Sample Accession", "Experiment Accession", "Run Accession", "Tax Id",
                   "Scientific Name", "FASTQ FTP", "Submitted FTP", "SRA FTP", "Library Construction Protocol"]
-    elif download_option.lower() == "metadata" and index_name == 'data_portal':
+    elif download_option.lower() == "metadata" and 'data_portal' in index_name:
         header = ['Organism', 'Common Name', 'Common Name Source', 'Current Status']
-    elif download_option.lower() == "metadata" and index_name == 'tracking_status_index':
+    elif download_option.lower() == "metadata" and 'tracking_status' in index_name:
         header = ['Organism', 'Common Name', 'Metadata submitted to BioSamples', 'Raw data submitted to ENA',
                   'Mapped reads submitted to ENA', 'Assemblies submitted to ENA',
                   'Annotation complete', 'Annotation submitted to ENA']
@@ -489,7 +489,7 @@ def create_data_files_csv(results, download_option, index_name):
                              scientific_name, fastq_ftp, submitted_ftp, sra_ftp, library_construction_protocol]
                     csv_writer.writerow(entry)
 
-        elif download_option.lower() == "metadata" and index_name == 'data_portal':
+        elif download_option.lower() == "metadata" and 'data_portal' in index_name:
             organism = record.get('organism', '')
             common_name = record.get('commonName', '')
             common_name_source = record.get('commonNameSource', '')
@@ -497,7 +497,7 @@ def create_data_files_csv(results, download_option, index_name):
             entry = [organism, common_name, common_name_source, current_status]
             csv_writer.writerow(entry)
 
-        elif download_option.lower() == "metadata" and index_name == 'tracking_status_index':
+        elif download_option.lower() == "metadata" and 'tracking_status' in index_name:
             organism = record.get('organism', '')
             common_name = record.get('commonName', '')
             metadata_biosamples = record.get('biosamples', '')
