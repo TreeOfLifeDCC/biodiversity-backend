@@ -36,7 +36,7 @@ es = AsyncElasticsearch(
     timeout=60,
     connection_class=AIOHttpConnection,
     http_auth=(ES_USERNAME, ES_PASSWORD),
-    use_ssl=True, verify_certs=False, timeout=60)
+    use_ssl=True, verify_certs=False)
 
 
 @app.get("/gis_filter")
