@@ -198,14 +198,6 @@ async def articles(offset: int = 0, limit: int = 15,
     return data
 
 
-@app.get("/summary")
-async def summary():
-    response = await es.search(index="summary")
-    data = dict()
-    data['results'] = response['hits']['hits']
-    return data
-
-
 @app.get("/{index}")
 async def root(index: str, offset: int = 0, limit: int = 15,
                sort: str = "rank:desc", filter: str = None,
