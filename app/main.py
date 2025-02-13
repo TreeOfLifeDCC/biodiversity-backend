@@ -366,13 +366,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
 
 @app.get("/{index}/{record_id}")
 async def details(index: str, record_id: str):
-    body = dict()
-    if 'data_portal' in index:
-        body["query"] = {
-            "bool": {"filter": [{'term': {'organism': record_id}}]}}
-        response = await es.search(index=index, body=body)
-    else:
-        response = await es.search(index=index, q=f"_id:{record_id}")
+    response = await es.search(index=index, q=f"_id:{record_id}")
     data = dict()
     data['count'] = response['hits']['total']['value']
     data['results'] = response['hits']['hits']
