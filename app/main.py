@@ -1,5 +1,5 @@
 import os
-from elasticsearch import AsyncElasticsearch, AIOHttpConnection
+from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,9 +7,9 @@ from pydantic import BaseModel
 import csv
 import io
 import json
-import re
-
-from .constants import DATA_PORTAL_AGGREGATIONS
+from elasticsearch.exceptions import ConnectionTimeout
+from dotenv import load_dotenv
+from .constants import DATA_PORTAL_AGGREGATIONS, ARTICLES_AGGREGATIONS
 
 app = FastAPI()
 
@@ -17,11 +17,14 @@ origins = [
     "*"
 ]
 
+load_dotenv()  # This loads environment variables from the .env file
+
 ES_HOST = os.getenv('ES_CONNECTION_URL')
-
 ES_USERNAME = os.getenv('ES_USERNAME')
-
 ES_PASSWORD = os.getenv('ES_PASSWORD')
+
+print("ES_HOST:", ES_HOST, type(ES_HOST))
+print("ES_USERNAME:", ES_USERNAME, type(ES_USERNAME))
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,11 +35,13 @@ app.add_middleware(
 )
 
 es = AsyncElasticsearch(
-    [ES_HOST],
+    ["https://prj-ext-prod-planet-bio-dr.es.europe-west2.gcp.elastic-cloud.com/"],
     timeout=60,
-    connection_class=AIOHttpConnection,
     http_auth=(ES_USERNAME, ES_PASSWORD),
-    use_ssl=True, verify_certs=False)
+    verify_certs=True)
+
+
+
 
 
 @app.get("/gis_filter")
@@ -155,62 +160,85 @@ async def get_gis_data(filter: str = None,
     return data
 
 
-@app.get("/articles")
-async def articles(offset: int = 0, limit: int = 15,
-                   articleType: str = None,
-                   journalTitle: str = None, pubYear: str = None):
-    body = dict()
-    data_index = 'articles'
-    # Aggregations
-    body["aggs"] = dict()
-    body["aggs"]['journalTitle'] = {
-        "terms": {"field": "journalTitle"}
-    }
-    body["aggs"]['pubYear'] = {
-        "terms": {"field": "pubYear"}
-    }
-    body["aggs"]["articleType"] = {
-        "terms": {"field": "articleType"}
-    }
-
-    # Filters
-    if articleType or journalTitle or pubYear:
-        body["query"] = {
-            "bool": {
-                "filter": list()
-            }
-        }
-    if articleType:
-        body["query"]["bool"]["filter"].append(
-            {"term": {'articleType': articleType}})
-    if journalTitle:
-        body["query"]["bool"]["filter"].append(
-            {"term": {'journalTitle': journalTitle}})
-    if pubYear:
-        body["query"]["bool"]["filter"].append({"term": {'pubYear': pubYear}})
-    print(body)
-    response = await es.search(index=data_index, from_=offset, size=limit,
-                               body=body)
-    data = dict()
-    data['count'] = response['hits']['total']['value']
-    data['results'] = response['hits']['hits']
-    data['aggregations'] = response['aggregations']
-    return data
-
-
 @app.get("/{index}")
 async def root(index: str, offset: int = 0, limit: int = 15,
-               sort: str = "rank:desc", filter: str = None,
+               sort: str | None = None, filter: str = None,
                search: str = None, current_class: str = 'kingdom',
                phylogeny_filters: str = None, action: str = None):
     # data structure for ES query
     body = dict()
     # building aggregations for every request
     body["aggs"] = dict()
-    for aggregation_field in DATA_PORTAL_AGGREGATIONS:
+
+    if 'articles' in index:
+        aggregations_list = ARTICLES_AGGREGATIONS
+    else:
+        aggregations_list = DATA_PORTAL_AGGREGATIONS
+
+    for aggregation_field in aggregations_list:
         body["aggs"][aggregation_field] = {
             "terms": {"field": aggregation_field, "size": 50}
         }
+
+
+    # body["aggs"]["experiment"] = {
+    #     "nested": {"path": "experiment"},
+    #     "aggs": {"library_construction_protocol": {"terms": {
+    #         "field": "experiment.library_construction_protocol.keyword"}
+    #     }
+    #     }
+    # }
+
+    if 'data_portal' in index:
+        body["aggs"]["experiment"] = {
+            "nested": {"path": "experiment"},
+            "aggs": {
+                "library_construction_protocol": {
+                    "terms": {
+                        "field": "experiment.library_construction_protocol.keyword",
+                        "size": 20
+                    },
+                    "aggs": {
+                        "distinct_docs": {
+                            "reverse_nested": {},
+                            # get to the parent document level to count number of docs instead of
+                            # number of terms
+                            "aggs": {
+                                "parent_doc_count": {
+                                    "cardinality": {
+                                        "field": "tax_id"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    if 'data_portal' in index or 'tracking_status' in index:
+        body["aggs"]["genome_notes"] = {
+            "nested": {"path": "genome_notes"},
+            "aggs": {
+                "genome_count": {
+                    "reverse_nested": {},  # get to the parent document level
+                    "aggs": {
+                        "distinct_docs": {
+                            "cardinality": {
+                                "field": "id"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    # body["aggs"]["genome"] = {
+    #     "nested": {"path": "genome_notes"},
+    #     "aggs": {"genome_count": {"cardinality": {"field": "genome_notes.id"}
+    #                               }
+    #              }
+    # }
+
     body["aggs"]["taxonomies"] = {
         "nested": {"path": f"taxonomies.{current_class}"},
         "aggs": {current_class: {
@@ -220,19 +248,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
         }
         }
     }
-    body["aggs"]["experiment"] = {
-        "nested": {"path": "experiment"},
-        "aggs": {"library_construction_protocol": {"terms": {
-            "field": "experiment.library_construction_protocol.keyword"}
-        }
-        }
-    }
-    body["aggs"]["genome"] = {
-        "nested": {"path": "genome_notes"},
-        "aggs": {"genome_count": {"cardinality": {"field": "genome_notes.id"}
-                                  }
-                 }
-    }
+
     if phylogeny_filters:
         body["query"] = {
             "bool": {
@@ -325,38 +341,42 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                     body["query"]["bool"]["filter"].append(
                         {"term": {filter_name: filter_value}})
 
-    # adding search string
+
+
+    # Adding search string
     if search:
-        # body already has filter parameters
-        if "query" in body:
-            # body["query"]["bool"].update({"should": []})
-            body["query"]["bool"].update({"must": {}})
+        if "query" not in body:
+            body["query"] = {"bool": {"must": {"bool": {"should": []}}}}
         else:
-            # body["query"] = {"bool": {"should": []}}
-            body["query"] = {"bool": {"must": {}}}
-        body["query"]["bool"]["must"] = {"bool": {"should": []}}
-        body["query"]["bool"]["must"]["bool"]["should"].append(
-            {"wildcard": {"organism": {"value": f"*{search}*",
-                                       "case_insensitive": True}}}
+            body["query"]["bool"].setdefault("must", {"bool": {"should": []}})
+
+        search_fields = (
+            ["title", "journal_name", "study_id", "organism_name"]
+            if 'articles' in index
+            else ["organism", "commonName", "symbionts_records.organism.text", "metagenomes_records.organism.text"]
         )
-        body["query"]["bool"]["must"]["bool"]["should"].append(
-            {"wildcard": {"commonName": {"value": f"*{search}*",
-                                         "case_insensitive": True}}}
-        )
-        body["query"]["bool"]["must"]["bool"]["should"].append(
-            {"wildcard": {"symbionts_records.organism.text": {"value": f"*{search}*",
-                                                              "case_insensitive": True}}}
-        )
-        body["query"]["bool"]["must"]["bool"]["should"].append(
-            {"wildcard": {"metagenomes_records.organism.text": {"value": f"*{search}*",
-                                                                "case_insensitive": True}}}
-        )
+
+        for field in search_fields:
+            body["query"]["bool"]["must"]["bool"]["should"].append({
+                "wildcard": {
+                    field: {
+                        "value": f"*{search}*",
+                        "case_insensitive": True
+                    }
+                }
+            })
+
     print(json.dumps(body))
 
     if action == 'download':
-        response = await es.search(index=index, sort=sort, from_=offset, body=body, size=10000)
+        try:
+            response = await es.search(index=index, sort=sort, from_=offset,
+                                       body=body, size=10000)
+        except ConnectionTimeout:
+            return {"error": "Request to Elasticsearch timed out."}
     else:
-        response = await es.search(index=index, sort=sort, from_=offset, size=limit, body=body)
+        response = await es.search(index=index, sort=sort, from_=offset,
+                                   size=limit, body=body)
     data = dict()
     data['count'] = response['hits']['total']['value']
     data['results'] = response['hits']['hits']
