@@ -8,7 +8,7 @@ import csv
 import io
 import json
 from elasticsearch.exceptions import ConnectionTimeout
-from dotenv import load_dotenv
+
 from .constants import DATA_PORTAL_AGGREGATIONS, ARTICLES_AGGREGATIONS
 
 app = FastAPI()
@@ -17,14 +17,10 @@ origins = [
     "*"
 ]
 
-load_dotenv()  # This loads environment variables from the .env file
 
 ES_HOST = os.getenv('ES_CONNECTION_URL')
 ES_USERNAME = os.getenv('ES_USERNAME')
 ES_PASSWORD = os.getenv('ES_PASSWORD')
-
-print("ES_HOST:", ES_HOST, type(ES_HOST))
-print("ES_USERNAME:", ES_USERNAME, type(ES_USERNAME))
 
 app.add_middleware(
     CORSMiddleware,
