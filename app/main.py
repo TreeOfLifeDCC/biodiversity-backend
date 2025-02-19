@@ -1,5 +1,5 @@
 import os
-from elasticsearch import AsyncElasticsearch
+from elasticsearch import AsyncElasticsearch, AIOHttpConnection
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,13 +35,11 @@ app.add_middleware(
 )
 
 es = AsyncElasticsearch(
-    ["https://prj-ext-prod-planet-bio-dr.es.europe-west2.gcp.elastic-cloud.com/"],
+    [ES_HOST],
     timeout=60,
+    connection_class=AIOHttpConnection,
     http_auth=(ES_USERNAME, ES_PASSWORD),
-    verify_certs=True)
-
-
-
+    use_ssl=True, verify_certs=False)
 
 
 @app.get("/gis_filter")
