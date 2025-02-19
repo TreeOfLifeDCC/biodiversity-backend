@@ -174,15 +174,6 @@ async def root(index: str, offset: int = 0, limit: int = 15,
             "terms": {"field": aggregation_field, "size": 50}
         }
 
-
-    # body["aggs"]["experiment"] = {
-    #     "nested": {"path": "experiment"},
-    #     "aggs": {"library_construction_protocol": {"terms": {
-    #         "field": "experiment.library_construction_protocol.keyword"}
-    #     }
-    #     }
-    # }
-
     if 'data_portal' in index:
         body["aggs"]["experiment"] = {
             "nested": {"path": "experiment"},
@@ -226,12 +217,6 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                 }
             }
         }
-    # body["aggs"]["genome"] = {
-    #     "nested": {"path": "genome_notes"},
-    #     "aggs": {"genome_count": {"cardinality": {"field": "genome_notes.id"}
-    #                               }
-    #              }
-    # }
 
     body["aggs"]["taxonomies"] = {
         "nested": {"path": f"taxonomies.{current_class}"},
