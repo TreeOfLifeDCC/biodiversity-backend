@@ -210,7 +210,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                     "aggs": {
                         "distinct_docs": {
                             "cardinality": {
-                                "field": "id"
+                                "field": "tax_id.keyword"
                             }
                         }
                     }
