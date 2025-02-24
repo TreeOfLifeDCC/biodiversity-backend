@@ -181,17 +181,14 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                 "library_construction_protocol": {
                     "terms": {
                         "field": "experiment.library_construction_protocol.keyword",
-                        "size": 20
                     },
                     "aggs": {
                         "distinct_docs": {
                             "reverse_nested": {},
-                            # get to the parent document level to count number of docs instead of
-                            # number of terms
                             "aggs": {
                                 "parent_doc_count": {
                                     "cardinality": {
-                                        "field": "tax_id"
+                                        "field": "tax_id.keyword"
                                     }
                                 }
                             }
