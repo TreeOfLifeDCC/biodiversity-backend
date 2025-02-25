@@ -357,9 +357,10 @@ async def root(index: str, offset: int = 0, limit: int = 15,
         response = await es.search(index=index, sort=sort, from_=offset,
                                    size=limit, body=body)
     data = dict()
-    data['count'] = response['hits']['total']['value']
     data['results'] = response['hits']['hits']
     data['aggregations'] = response['aggregations']
+    data['count'] = data['aggregations']['biosamples']['buckets'][0][
+        'doc_count']
     return data
 
 
