@@ -332,7 +332,8 @@ async def root(index: str, offset: int = 0, limit: int = 15,
         search_fields = (
             ["title", "journal_name", "study_id", "organism_name"]
             if 'articles' in index
-            else ["organism", "commonName", "symbionts_records.organism.text", "metagenomes_records.organism.text"]
+            else ["organism", "commonName", "symbionts_records.organism.text",
+                  "metagenomes_records.organism.text"]
         )
 
         for field in search_fields:
@@ -350,7 +351,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
     if action == 'download':
         try:
             response = await es.search(index=index, sort=sort, from_=offset,
-                                       body=body, size=10000)
+                                       body=body, size=1000)
         except ConnectionTimeout:
             return {"error": "Request to Elasticsearch timed out."}
     else:
@@ -387,12 +388,9 @@ class QueryParam(BaseModel):
 
 @app.post("/data-download")
 async def get_data_files(item: QueryParam):
-    data = await root(item.index_name, 0, item.pageSize,
-                      item.sortValue, item.filterValue,
-                      item.searchValue, item.currentClass,
-                      item.phylogeny_filters, 'download')
-
-    csv_data = create_data_files_csv(data['results'], item.downloadOption, item.index_name)
+    data = await fetch_data_in_batches(item)
+    csv_data = create_data_files_csv(data['results'], item.downloadOption,
+                                     item.index_name)
 
     # Return the byte stream as a downloadable CSV file
     return StreamingResponse(
@@ -400,6 +398,33 @@ async def get_data_files(item: QueryParam):
         media_type='text/csv',
         headers={"Content-Disposition": "attachment; filename=download.csv"}
     )
+
+
+async def fetch_data_in_batches(item: QueryParam):
+    offset = 0
+    batch_size = 1000
+    all_data = []  # Store accumulated results
+
+    while True:
+        try:
+            data = await root(
+                item.index_name, offset, item.pageSize,
+                item.sortValue, item.filterValue,
+                item.searchValue, item.currentClass,
+                item.phylogeny_filters, 'download'
+            )
+
+            if not data or data.get('count', 0) <= 0:
+                break  # Stop if no more data is available
+
+            all_data.append(data)  # Collect results
+            offset += batch_size  # Move to the next batch
+
+        except Exception as e:
+            print(f"Error fetching data: {e}")
+            break  # Exit loop on error
+
+    return all_data  # Return accumulated results
 
 
 def create_data_files_csv(results, download_option, index_name):
