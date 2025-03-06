@@ -506,21 +506,29 @@ async def fetch_data_in_batches(item: QueryParam):
     offset = 0
     batch_size = 1000
     all_data = []
-    data = await root(
-        item.index_name, offset, batch_size,
-        item.sortValue, item.filterValue,
-        item.searchValue, item.currentClass,
-        item.phylogeny_filters, 'download'
-    )
 
-    while len(data['results']) > 0:
-            data = await root(
-                item.index_name, offset, batch_size,
-                item.sortValue, item.filterValue,
-                item.searchValue, item.currentClass,
-                item.phylogeny_filters, 'download'
-            )
-            all_data.extend(data['results'])
-            offset += batch_size
+    while True:
+        # Fetch the next batch of data
+        data = await root(
+            item.index_name, offset, batch_size,
+            item.sortValue, item.filterValue,
+            item.searchValue, item.currentClass,
+            item.phylogeny_filters, 'download'
+        )
+
+        # If there are no results, stop fetching
+        results = data.get('results', [])
+        if not results:
+            break  # Exit loop if no results
+
+        # Add the fetched results to the all_data list
+        all_data.extend(results)
+
+        # Move offset for the next batch
+        offset += batch_size
+
+        # Optionally log progress
+        print(f"Fetched {len(results)} results, total: {len(all_data)}")
+
     return all_data
 
