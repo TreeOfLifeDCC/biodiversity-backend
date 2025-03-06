@@ -351,7 +351,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
     if action == 'download':
         try:
             response = await es.search(index=index, sort=sort, from_=offset,
-                                       body=body, size=1000)
+                                       body=body, size=limit)
         except ConnectionTimeout:
             return {"error": "Request to Elasticsearch timed out."}
     else:
@@ -389,7 +389,10 @@ class QueryParam(BaseModel):
 @app.post("/data-download")
 async def get_data_files(item: QueryParam):
     data = await fetch_data_in_batches(item)
-    csv_data = create_data_files_csv(data['results'], item.downloadOption,
+
+
+
+    csv_data = create_data_files_csv(data, item.downloadOption,
                                      item.index_name)
 
     # Return the byte stream as a downloadable CSV file
@@ -398,33 +401,6 @@ async def get_data_files(item: QueryParam):
         media_type='text/csv',
         headers={"Content-Disposition": "attachment; filename=download.csv"}
     )
-
-
-async def fetch_data_in_batches(item: QueryParam):
-    offset = 0
-    batch_size = 1000
-    all_data = []  # Store accumulated results
-
-    while True:
-        try:
-            data = await root(
-                item.index_name, offset, item.pageSize,
-                item.sortValue, item.filterValue,
-                item.searchValue, item.currentClass,
-                item.phylogeny_filters, 'download'
-            )
-
-            if not data or data.get('count', 0) <= 0:
-                break  # Stop if no more data is available
-
-            all_data.append(data)  # Collect results
-            offset += batch_size  # Move to the next batch
-
-        except Exception as e:
-            print(f"Error fetching data: {e}")
-            break  # Exit loop on error
-
-    return all_data  # Return accumulated results
 
 
 def create_data_files_csv(results, download_option, index_name):
@@ -523,4 +499,28 @@ def create_data_files_csv(results, download_option, index_name):
 
     output.seek(0)
     return io.BytesIO(output.getvalue().encode('utf-8'))
+
+
+
+async def fetch_data_in_batches(item: QueryParam):
+    offset = 0
+    batch_size = 1000
+    all_data = []
+    data = await root(
+        item.index_name, offset, batch_size,
+        item.sortValue, item.filterValue,
+        item.searchValue, item.currentClass,
+        item.phylogeny_filters, 'download'
+    )
+
+    while len(data['results']) > 0:
+            data = await root(
+                item.index_name, offset, batch_size,
+                item.sortValue, item.filterValue,
+                item.searchValue, item.currentClass,
+                item.phylogeny_filters, 'download'
+            )
+            all_data.extend(data['results'])
+            offset += batch_size
+    return all_data
 
