@@ -329,7 +329,8 @@ async def root(index: str, offset: int = 0, limit: int = 15,
         search_fields = (
             ["title", "journal_name", "study_id", "organism_name"]
             if 'articles' in index
-            else ["organism", "commonName", "symbionts_records.organism.text", "metagenomes_records.organism.text"]
+            else ["organism", "commonName", "symbionts_records.organism.text",
+                  "metagenomes_records.organism.text"]
         )
 
         for field in search_fields:
@@ -347,16 +348,17 @@ async def root(index: str, offset: int = 0, limit: int = 15,
     if action == 'download':
         try:
             response = await es.search(index=index, sort=sort, from_=offset,
-                                       body=body, size=10000)
+                                       body=body, size=limit)
         except ConnectionTimeout:
             return {"error": "Request to Elasticsearch timed out."}
     else:
         response = await es.search(index=index, sort=sort, from_=offset,
                                    size=limit, body=body)
     data = dict()
-    data['count'] = response['hits']['total']['value']
     data['results'] = response['hits']['hits']
     data['aggregations'] = response['aggregations']
+    data['count'] = data['aggregations']['biosamples']['buckets'][0][
+        'doc_count']
     return data
 
 
@@ -383,12 +385,12 @@ class QueryParam(BaseModel):
 
 @app.post("/data-download")
 async def get_data_files(item: QueryParam):
-    data = await root(item.index_name, 0, item.pageSize,
-                      item.sortValue, item.filterValue,
-                      item.searchValue, item.currentClass,
-                      item.phylogeny_filters, 'download')
+    data = await fetch_data_in_batches(item)
 
-    csv_data = create_data_files_csv(data['results'], item.downloadOption, item.index_name)
+
+
+    csv_data = create_data_files_csv(data, item.downloadOption,
+                                     item.index_name)
 
     # Return the byte stream as a downloadable CSV file
     return StreamingResponse(
@@ -494,4 +496,36 @@ def create_data_files_csv(results, download_option, index_name):
 
     output.seek(0)
     return io.BytesIO(output.getvalue().encode('utf-8'))
+
+
+
+async def fetch_data_in_batches(item: QueryParam):
+    offset = 0
+    batch_size = 1000
+    all_data = []
+
+    while True:
+        # Fetch the next batch of data
+        data = await root(
+            item.index_name, offset, batch_size,
+            item.sortValue, item.filterValue,
+            item.searchValue, item.currentClass,
+            item.phylogeny_filters, 'download'
+        )
+
+        # If there are no results, stop fetching
+        results = data.get('results', [])
+        if not results:
+            break  # Exit loop if no results
+
+        # Add the fetched results to the all_data list
+        all_data.extend(results)
+
+        # Move offset for the next batch
+        offset += batch_size
+
+        # Optionally log progress
+        print(f"Fetched {len(results)} results, total: {len(all_data)}")
+
+    return all_data
 
