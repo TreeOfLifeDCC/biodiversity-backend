@@ -342,6 +342,22 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                     }
                 }
             })
+        if 'data_portal' in index:
+            body["query"]["bool"]["must"]["bool"]["should"].append(
+                {
+                    "nested": {
+                        "path": "records",
+                        "query": {
+                            "wildcard": {
+                                "records.accession": {
+                                    "value": f"*{search}*",
+                                    "case_insensitive": True,
+                                }
+                            }
+                        },
+                    }
+                }
+            )
 
     print(json.dumps(body))
 
