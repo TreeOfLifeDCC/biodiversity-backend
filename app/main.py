@@ -17,7 +17,6 @@ origins = [
     "*"
 ]
 
-
 ES_HOST = os.getenv('ES_CONNECTION_URL')
 ES_USERNAME = os.getenv('ES_USERNAME')
 ES_PASSWORD = os.getenv('ES_PASSWORD')
@@ -317,8 +316,6 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                     body["query"]["bool"]["filter"].append(
                         {"term": {filter_name: filter_value}})
 
-
-
     # Adding search string
     if search:
         if "query" not in body:
@@ -373,8 +370,10 @@ async def root(index: str, offset: int = 0, limit: int = 15,
     data = dict()
     data['results'] = response['hits']['hits']
     data['aggregations'] = response['aggregations']
-    data['count'] = data['aggregations']['biosamples']['buckets'][0][
-        'doc_count']
+    if 'articles' in index:
+        data['count'] = response['hits']['total']['value']
+    else:
+        data['count'] = data['aggregations']['biosamples']['buckets'][0]['doc_count']
     return data
 
 
@@ -403,8 +402,6 @@ class QueryParam(BaseModel):
 async def get_data_files(item: QueryParam):
     data = await fetch_data_in_batches(item)
 
-
-
     csv_data = create_data_files_csv(data, item.downloadOption,
                                      item.index_name)
 
@@ -419,21 +416,25 @@ async def get_data_files(item: QueryParam):
 def create_data_files_csv(results, download_option, index_name):
     header = []
     if download_option.lower() == "assemblies":
-        header = ["Scientific Name", "Accession", "Version", "Assembly Name", "Assembly Description",
+        header = ["Scientific Name", "Accession", "Version", "Assembly Name",
+                  "Assembly Description",
                   "Link to chromosomes, contigs and scaffolds all in one"]
     elif download_option.lower() == "annotation":
-        header = ["Annotation GTF", "Annotation GFF3", "Proteins Fasta", "Transcripts Fasta",
+        header = ["Annotation GTF", "Annotation GFF3", "Proteins Fasta",
+                  "Transcripts Fasta",
                   "Softmasked genomes Fasta"]
     elif download_option.lower() == "raw_files":
-        header = ["Study Accession", "Sample Accession", "Experiment Accession", "Run Accession", "Tax Id",
-                  "Scientific Name", "FASTQ FTP", "Submitted FTP", "SRA FTP", "Library Construction Protocol"]
+        header = ["Study Accession", "Sample Accession", "Experiment Accession",
+                  "Run Accession", "Tax Id",
+                  "Scientific Name", "FASTQ FTP", "Submitted FTP", "SRA FTP",
+                  "Library Construction Protocol"]
     elif download_option.lower() == "metadata" and 'data_portal' in index_name:
         header = ['Organism', 'Common Name', 'Common Name Source', 'Current Status']
     elif download_option.lower() == "metadata" and 'tracking_status' in index_name:
-        header = ['Organism', 'Common Name', 'Metadata submitted to BioSamples', 'Raw data submitted to ENA',
+        header = ['Organism', 'Common Name', 'Metadata submitted to BioSamples',
+                  'Raw data submitted to ENA',
                   'Mapped reads submitted to ENA', 'Assemblies submitted to ENA',
                   'Annotation complete', 'Annotation submitted to ENA']
-
 
     output = io.StringIO()
     csv_writer = csv.writer(output)
@@ -450,7 +451,8 @@ def create_data_files_csv(results, download_option, index_name):
                 assembly_name = assembly.get("assembly_name", "")
                 assembly_description = assembly.get("description", "")
                 link = f"https://www.ebi.ac.uk/ena/browser/api/fasta/{accession}?download=true&gzip=true" if accession else ""
-                entry = [scientific_name, accession, version, assembly_name, assembly_description, link]
+                entry = [scientific_name, accession, version, assembly_name,
+                         assembly_description, link]
                 csv_writer.writerow(entry)
 
         elif download_option.lower() == "annotation":
@@ -460,8 +462,10 @@ def create_data_files_csv(results, download_option, index_name):
                 gff3 = annotation.get("annotation", {}).get("GFF3", "-")
                 proteins_fasta = annotation.get("proteins", {}).get("FASTA", "")
                 transcripts_fasta = annotation.get("transcripts", {}).get("FASTA", "")
-                softmasked_genomes_fasta = annotation.get("softmasked_genome", {}).get("FASTA", "")
-                entry = [gtf, gff3, proteins_fasta, transcripts_fasta, softmasked_genomes_fasta]
+                softmasked_genomes_fasta = annotation.get("softmasked_genome", {}).get(
+                    "FASTA", "")
+                entry = [gtf, gff3, proteins_fasta, transcripts_fasta,
+                         softmasked_genomes_fasta]
                 csv_writer.writerow(entry)
 
         elif download_option.lower() == "raw_files":
@@ -475,18 +479,23 @@ def create_data_files_csv(results, download_option, index_name):
                 scientific_name = experiment.get("scientific_name", "")
                 submitted_ftp = experiment.get("submitted_ftp", "")
                 sra_ftp = experiment.get("sra-ftp", "")
-                library_construction_protocol = experiment.get("library_construction_protocol", "")
+                library_construction_protocol = experiment.get(
+                    "library_construction_protocol", "")
                 fastq_ftp = experiment.get("fastq_ftp", "")
 
                 if fastq_ftp:
                     fastq_list = fastq_ftp.split(";")
                     for fastq in fastq_list:
-                        entry = [study_accession, sample_accession, experiment_accession, run_accession, tax_id,
-                                 scientific_name, fastq, submitted_ftp, sra_ftp, library_construction_protocol]
+                        entry = [study_accession, sample_accession,
+                                 experiment_accession, run_accession, tax_id,
+                                 scientific_name, fastq, submitted_ftp, sra_ftp,
+                                 library_construction_protocol]
                         csv_writer.writerow(entry)
                 else:
-                    entry = [study_accession, sample_accession, experiment_accession, run_accession, tax_id,
-                             scientific_name, fastq_ftp, submitted_ftp, sra_ftp, library_construction_protocol]
+                    entry = [study_accession, sample_accession, experiment_accession,
+                             run_accession, tax_id,
+                             scientific_name, fastq_ftp, submitted_ftp, sra_ftp,
+                             library_construction_protocol]
                     csv_writer.writerow(entry)
 
         elif download_option.lower() == "metadata" and 'data_portal' in index_name:
@@ -506,13 +515,13 @@ def create_data_files_csv(results, download_option, index_name):
             assemblies_ena = record.get('assemblies_status', '')
             annotation_complete = record.get('annotation_complete', '')
             annotation_submitted_ena = record.get('annotation_status', '')
-            entry = [organism, common_name, metadata_biosamples, raw_data_ena, mapped_reads_ena, assemblies_ena,
+            entry = [organism, common_name, metadata_biosamples, raw_data_ena,
+                     mapped_reads_ena, assemblies_ena,
                      annotation_complete, annotation_submitted_ena]
             csv_writer.writerow(entry)
 
     output.seek(0)
     return io.BytesIO(output.getvalue().encode('utf-8'))
-
 
 
 async def fetch_data_in_batches(item: QueryParam):
@@ -544,4 +553,3 @@ async def fetch_data_in_batches(item: QueryParam):
         print(f"Fetched {len(results)} results, total: {len(all_data)}")
 
     return all_data
-
