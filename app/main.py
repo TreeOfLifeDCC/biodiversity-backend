@@ -171,7 +171,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
 
     for aggregation_field in aggregations_list:
         body["aggs"][aggregation_field] = {
-            "terms": {"field": aggregation_field, "size": 50}
+            "terms": {"field": aggregation_field+'.keyword'}
         }
 
     if 'data_portal' in index:
@@ -380,10 +380,90 @@ async def root(index: str, offset: int = 0, limit: int = 15,
 
 @app.get("/{index}/{record_id}")
 async def details(index: str, record_id: str):
-    response = await es.search(index=index, q=f"_id:{record_id}")
+    body = dict()
+    if 'filters_data_portal_index_test' in index:
+        body["query"] = {
+            "bool": {
+                "filter": [
+                    {
+                        'term': {
+                            'tax_id': record_id
+                        }
+                    }
+                ]
+            }
+        }
+        body["aggs"] = dict()
+        body["aggs"]["metadata_filters"] = {
+            'nested': {'path': 'records'},
+            "aggs": {
+                'sex_filter': {
+                    'terms': {
+                        'field':
+                            'records.sex.keyword',
+                        'size': 2000}},
+                'tracking_status_filter': {
+                    'terms': {
+                        'field':
+                            'records.'
+                            'trackingSystem.keyword',
+                        'size': 2000}},
+                'organism_part_filter': {
+                    'terms': {
+                        'field': 'records'
+                                 '.organismPart.keyword',
+                        'size': 2000}}
+            }}
+        body["aggs"]["symbionts_filters"] = {
+            'nested': {'path': 'symbionts_records'},
+            "aggs": {
+                'sex_filter': {
+                    'terms': {
+                        'field':
+                            'symbionts_records.sex.keyword',
+                        'size': 2000}},
+                'tracking_status_filter': {
+                    'terms': {
+                        'field':
+                            'symbionts_records.'
+                            'trackingSystem.keyword',
+                        'size': 2000}},
+                'organism_part_filter': {
+                    'terms': {
+                        'field': 'symbionts_records'
+                                 '.organismPart.keyword',
+                        'size': 2000}}
+            }}
+        body['aggs']['metagenomes_filters'] = {
+            'nested': {'path': 'metagenomes_records'},
+            "aggs": {
+                'sex_filter': {
+                    'terms': {
+                        'field':
+                            'metagenomes_records.sex.keyword',
+                        'size': 2000}},
+                'tracking_status_filter': {
+                    'terms': {
+                        'field':
+                            'metagenomes_records.'
+                            'trackingSystem.keyword',
+                        'size': 2000}},
+                'organism_part_filter': {
+                    'terms': {
+                        'field': 'metagenomes_records'
+                                 '.organismPart.keyword',
+                        'size': 2000}}
+            }}
+        print(json.dumps(body))
+        response = await es.search(index=index, body=body)
+        aggregations = response['aggregations']
+    else:
+        response = await es.search(index=index, q=f"_id:{record_id}")
     data = dict()
     data['count'] = response['hits']['total']['value']
     data['results'] = response['hits']['hits']
+    if 'filters_data_portal_index_test' in index:
+        data['aggregations'] = aggregations
     return data
 
 
