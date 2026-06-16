@@ -41,7 +41,8 @@ ALLOWED_INDICES = {
     i.strip()
     for i in os.getenv(
         'ALLOWED_INDICES',
-        'data_portal,tracking_status_index,articles,gis_filter_index',
+        'data_portal,tracking_status,tracking_status_index,'
+        'articles,gis_filter_index',
     ).split(',')
     if i.strip()
 }
