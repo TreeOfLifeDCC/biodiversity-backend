@@ -1,31 +1,99 @@
 import os
+import re
 from elasticsearch import AsyncElasticsearch, AIOHttpConnection
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import csv
 import io
-import json
 from elasticsearch.exceptions import ConnectionTimeout
 
 from .constants import DATA_PORTAL_AGGREGATIONS, ARTICLES_AGGREGATIONS
 
 app = FastAPI()
 
+# CORS: only allow explicitly configured front-end origins.
+# Set CORS_ALLOWED_ORIGINS to a comma-separated list (e.g.
+# "https://portal.example.org,https://www.example.org"). Empty by default so
+# no cross-origin access is granted unless deliberately configured. We do NOT
+# allow credentials, so a wildcard origin is never combined with cookies.
 origins = [
-    "*"
+    o.strip()
+    for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if o.strip()
 ]
 
 ES_HOST = os.getenv('ES_CONNECTION_URL')
 ES_USERNAME = os.getenv('ES_USERNAME')
 ES_PASSWORD = os.getenv('ES_PASSWORD')
 
+# TLS verification to Elasticsearch is enabled by default. Provide ES_CA_CERTS
+# to point at the cluster CA bundle when it is not in the system trust store.
+# ES_VERIFY_CERTS=false can disable verification for local/dev only.
+ES_VERIFY_CERTS = os.getenv('ES_VERIFY_CERTS', 'true').lower() != 'false'
+ES_CA_CERTS = os.getenv('ES_CA_CERTS') or None
+
+# Indices that may be queried through the public API. Closed allowlist by
+# default; override with the ALLOWED_INDICES env var (comma-separated) to match
+# the deployment's index names.
+ALLOWED_INDICES = {
+    i.strip()
+    for i in os.getenv(
+        'ALLOWED_INDICES',
+        'data_portal,tracking_status_index,articles,gis_filter_index',
+    ).split(',')
+    if i.strip()
+}
+
+# Bounds to prevent unbounded result windows / resource exhaustion.
+MAX_LIMIT = 1000
+MAX_SEARCH_LEN = 100
+# Hard cap on the gis_filter result set (configurable for large maps).
+GIS_MAX_RESULTS = int(os.getenv('GIS_MAX_RESULTS', '100000'))
+
+# Field/path name tokens that get interpolated into ES query DSL must be plain
+# identifiers. This prevents attacker-controlled field-name injection.
+_FIELD_TOKEN_RE = re.compile(r'^[A-Za-z0-9_]+$')
+
+
+def validate_index(index: str) -> str:
+    if index not in ALLOWED_INDICES:
+        raise HTTPException(status_code=404, detail="Unknown index")
+    return index
+
+
+def safe_field_token(value: str, what: str = "field name") -> str:
+    if not value or not _FIELD_TOKEN_RE.fullmatch(value):
+        raise HTTPException(status_code=400, detail=f"Invalid {what}")
+    return value
+
+
+def split_pair(item: str, what: str) -> tuple[str, str]:
+    """Split a 'name:value' token, returning a 400 instead of a 500 on
+    malformed input."""
+    parts = item.split(":", 1)
+    if len(parts) != 2 or not parts[0]:
+        raise HTTPException(status_code=400, detail=f"Malformed {what}")
+    return parts[0], parts[1]
+
+
+def escape_wildcard(value: str) -> str:
+    """Neutralise ES wildcard metacharacters so the user cannot inject extra
+    wildcard patterns, and cap length to limit expensive scans."""
+    value = value[:MAX_SEARCH_LEN]
+    return (
+        value.replace("\\", "\\\\")
+        .replace("*", "\\*")
+        .replace("?", "\\?")
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -34,14 +102,14 @@ es = AsyncElasticsearch(
     timeout=60,
     connection_class=AIOHttpConnection,
     http_auth=(ES_USERNAME, ES_PASSWORD),
-    use_ssl=True, verify_certs=False)
+    use_ssl=True, verify_certs=ES_VERIFY_CERTS, ca_certs=ES_CA_CERTS)
 
 
 @app.get("/gis_filter")
 async def get_gis_data(filter: str = None,
                        search: str = None, current_class: str = 'kingdom',
                        phylogeny_filters: str = None):
-    print(phylogeny_filters)
+    current_class = safe_field_token(current_class, "current_class")
     # data structure for ES query
     body = dict()
     # building aggregations for every request
@@ -67,9 +135,9 @@ async def get_gis_data(filter: str = None,
             }
         }
         phylogeny_filters = phylogeny_filters.split("-")
-        print(phylogeny_filters)
         for phylogeny_filter in phylogeny_filters:
-            name, value = phylogeny_filter.split(":")
+            name, value = split_pair(phylogeny_filter, "phylogeny_filters")
+            name = safe_field_token(name, "phylogeny rank")
             nested_dict = {
                 "nested": {
                     "path": f"taxonomies.{name}",
@@ -99,7 +167,7 @@ async def get_gis_data(filter: str = None,
             }
         for filter_item in filters:
             if current_class in filter_item:
-                _, value = filter_item.split(":")
+                _, value = split_pair(filter_item, "filter")
                 nested_dict = {
                     "nested": {
                         "path": f"taxonomies.{current_class}",
@@ -119,13 +187,15 @@ async def get_gis_data(filter: str = None,
                 )
                 body["query"]["bool"]["filter"].append(nested_dict)
             else:
-                filter_name, filter_value = filter_item.split(":")
+                filter_name, filter_value = split_pair(filter_item, "filter")
+                filter_name = safe_field_token(filter_name, "filter field")
                 body["query"]["bool"]["filter"].append(
                     {"term": {filter_name + '.keyword': filter_value}}
                 )
 
     # adding search string
     if search:
+        search = escape_wildcard(search)
         # body already has filter parameters
         if "query" in body:
             # body["query"]["bool"].update({"should": []})
@@ -142,9 +212,8 @@ async def get_gis_data(filter: str = None,
             {"wildcard": {"commonName.keyword": {"value": f"*{search}*",
                                                  "case_insensitive": True}}}
         )
-    print(json.dumps(body))
     response = await es.search(
-        index='gis_filter_index', body=body, size=100000,
+        index='gis_filter_index', body=body, size=GIS_MAX_RESULTS,
     )
     data = dict()
     data['count'] = response['hits']['total']['value']
@@ -158,6 +227,11 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                sort: str | None = None, filter: str = None,
                search: str = None, current_class: str = 'kingdom',
                phylogeny_filters: str = None, action: str = None):
+    validate_index(index)
+    current_class = safe_field_token(current_class, "current_class")
+    # clamp paging parameters to safe bounds
+    offset = max(0, offset)
+    limit = max(1, min(limit, MAX_LIMIT))
     # data structure for ES query
     body = dict()
     # building aggregations for every request
@@ -236,9 +310,9 @@ async def root(index: str, offset: int = 0, limit: int = 15,
             }
         }
         phylogeny_filters = phylogeny_filters.split("-")
-        print(phylogeny_filters)
         for phylogeny_filter in phylogeny_filters:
-            name, value = phylogeny_filter.split(":")
+            name, value = split_pair(phylogeny_filter, "phylogeny_filters")
+            name = safe_field_token(name, "phylogeny rank")
             nested_dict = {
                 "nested": {
                     "path": f"taxonomies.{name}",
@@ -268,7 +342,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
             }
         for filter_item in filters:
             if current_class in filter_item:
-                _, value = filter_item.split(":")
+                _, value = split_pair(filter_item, "filter")
                 nested_dict = {
                     "nested": {
                         "path": f"taxonomies.{current_class}",
@@ -289,7 +363,8 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                 body["query"]["bool"]["filter"].append(nested_dict)
 
             else:
-                filter_name, filter_value = filter_item.split(":")
+                filter_name, filter_value = split_pair(filter_item, "filter")
+                filter_name = safe_field_token(filter_name, "filter field")
                 if filter_name == 'experimentType':
                     nested_dict = {
                         "nested": {
@@ -317,12 +392,12 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                                         'field': 'genome_notes.url'}}]}}}}
                     body["query"]["bool"]["filter"].append(nested_dict)
                 else:
-                    print(filter_name)
                     body["query"]["bool"]["filter"].append(
                         {"term": {filter_name: filter_value}})
 
     # Adding search string
     if search:
+        search = escape_wildcard(search)
         if "query" not in body:
             body["query"] = {"bool": {"must": {"bool": {"should": []}}}}
         else:
@@ -361,8 +436,6 @@ async def root(index: str, offset: int = 0, limit: int = 15,
                 }
             )
 
-    print(json.dumps(body))
-
     if action == 'download':
         try:
             response = await es.search(index=index, sort=sort, from_=offset,
@@ -384,6 +457,7 @@ async def root(index: str, offset: int = 0, limit: int = 15,
 
 @app.get("/{index}/{record_id}")
 async def details(index: str, record_id: str):
+    validate_index(index)
     body = dict()
     if 'data_portal' in index:
         body["query"] = {
@@ -458,11 +532,15 @@ async def details(index: str, record_id: str):
                                  '.organismPart.keyword',
                         'size': 2000}}
             }}
-        print(json.dumps(body))
         response = await es.search(index=index, body=body)
         aggregations = response['aggregations']
     else:
-        response = await es.search(index=index, q=f"_id:{record_id}")
+        # Use a parameterized ids query rather than the Lucene query-string
+        # interface so record_id cannot inject query operators.
+        response = await es.search(
+            index=index,
+            body={"query": {"ids": {"values": [record_id]}}},
+        )
     data = dict()
     data['count'] = response['hits']['total']['value']
     data['results'] = response['hits']['hits']
