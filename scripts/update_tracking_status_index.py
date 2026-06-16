@@ -1,18 +1,24 @@
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-import warnings
-warnings.filterwarnings('ignore', message='Unverified HTTPS request')
-warnings.filterwarnings("ignore")
+import os
 
 from elasticsearch import Elasticsearch
 from elasticsearch import RequestsHttpConnection
 
+ES_HOST = os.environ['ES_CONNECTION_URL']
+ES_USERNAME = os.environ['ES_USERNAME']
+ES_PASSWORD = os.environ['ES_PASSWORD']
+ES_VERIFY_CERTS = os.getenv('ES_VERIFY_CERTS', 'true').lower() != 'false'
+ES_CA_CERTS = os.getenv('ES_CA_CERTS') or None
+
+
+def get_es_client():
+    return Elasticsearch(
+        [ES_HOST], connection_class=RequestsHttpConnection,
+        http_auth=(ES_USERNAME, ES_PASSWORD),
+        use_ssl=True, verify_certs=ES_VERIFY_CERTS, ca_certs=ES_CA_CERTS)
+
 
 def update_tracking_status_symbionts():
-    es = Elasticsearch(
-        ['es_host'], connection_class=RequestsHttpConnection,
-        http_auth=('username', 'password'),
-        use_ssl=True, verify_certs=False)
+    es = get_es_client()
 
     data = es.search(index='data_portal', size=10000, from_=0, track_total_hits=True)
 
@@ -39,10 +45,7 @@ def update_tracking_status_symbionts():
 
 
 def update_tracking_status_metagenomes():
-    es = Elasticsearch(
-        ['es_host'], connection_class=RequestsHttpConnection,
-        http_auth=('username', 'password'),
-        use_ssl=True, verify_certs=False)
+    es = get_es_client()
 
     data = es.search(index='data_portal', size=10000, from_=0, track_total_hits=True)
 
